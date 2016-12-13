@@ -3,7 +3,7 @@
   "dependencies": {
     "NUnit": "3.4.1",
     "RabbitMQ.Client": "*",
-    "dotnet-test-nunit": "3.4.0-beta-2"
+    "dotnet-test-nunit": "3.4.0-beta-3"
   },
   "testRunner": "nunit",
   "frameworks": {
@@ -20,6 +20,10 @@
         "System.Collections.NonGeneric": "4.0.1"
       }
     },
-    "net451": {}
+    "net451": {
+      "dependencies": {
+        "Microsoft.Diagnostics.Tracing.EventSource.Redist": "1.1.*"
+      }
+    }
   }
 }

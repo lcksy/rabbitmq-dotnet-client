@@ -1,4 +1,4 @@
-﻿// This source code is dual-licensed under the Apache License, version
+// This source code is dual-licensed under the Apache License, version
 // 2.0, and the Mozilla Public License, version 1.1.
 //
 // The APL v2.0:
@@ -38,34 +38,54 @@
 //  Copyright (c) 2007-2016 Pivotal Software, Inc.  All rights reserved.
 //---------------------------------------------------------------------------
 
-using RabbitMQ.Client.Events;
-using System;
-using System.Collections;
-
-namespace RabbitMQ.Client.MessagePatterns
+namespace RabbitMQ.Client.Logging
 {
-    ///<summary>Manages a subscription to a queue.</summary>
-    ///<remarks>
-    ///<para>
-    /// This interface is provided to make creation of test doubles
-    /// for <see cref="Subscription" /> easier.
-    ///</para>
-    ///</remarks>
-    public interface ISubscription : IEnumerable, IEnumerator, IDisposable
+    using System;
+#if NET451
+    using Microsoft.Diagnostics.Tracing;
+#else
+    using System.Diagnostics.Tracing;
+#endif
+
+    [EventSource(Name="rabbitmq-dotnet-client")]
+    public sealed class RabbitMqClientEventSource : EventSource
     {
-        void Ack();
-        void Ack(BasicDeliverEventArgs evt);
-        void Close();
-        IBasicConsumer Consumer { get; }
-        string ConsumerTag { get; }
-        BasicDeliverEventArgs LatestEvent { get; }
-        IModel Model { get; }
-        void Nack(BasicDeliverEventArgs evt, bool multiple, bool requeue);
-        void Nack(bool multiple, bool requeue);
-        void Nack(bool requeue);
-        BasicDeliverEventArgs Next();
-        bool Next(int millisecondsTimeout, out BasicDeliverEventArgs result);
-        bool AutoAck { get; }
-        string QueueName { get; }
+        public class Keywords
+        {
+            public const EventKeywords Log = (EventKeywords)1;
+        }
+
+        public RabbitMqClientEventSource() : base(EventSourceSettings.EtwSelfDescribingEventFormat)
+        {
+        }
+
+        public static RabbitMqClientEventSource Log = new RabbitMqClientEventSource ();
+
+        [Event(1, Message = "INFO", Keywords = Keywords.Log, Level = EventLevel.Informational)]
+        public void Info(string message)
+        {
+            if(IsEnabled())
+                this.WriteEvent(1, message);
+        }
+
+        [Event(2, Message = "WARN", Keywords = Keywords.Log, Level = EventLevel.Warning)]
+        public void Warn(string message)
+        {
+            if(IsEnabled())
+                this.WriteEvent(2, message);
+        }
+
+        [Event(3, Message = "ERROR", Keywords = Keywords.Log, Level = EventLevel.Error)]
+        public void Error(string message,  RabbitMqExceptionDetail ex)
+        {
+            if(IsEnabled())
+                this.WriteEvent(3, message, ex);
+        }
+
+        [NonEvent]
+        public void Error(string message, Exception ex)
+        {
+            Error(message, new RabbitMqExceptionDetail(ex));
+        }
     }
 }

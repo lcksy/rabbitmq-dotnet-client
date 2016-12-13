@@ -84,6 +84,12 @@ namespace RabbitMQ.Client.Unit
             Model = Conn.CreateModel();
         }
 
+        [TearDown]
+        public void CleanUp()
+        {
+            Conn.Close();
+        }
+
         [Test]
         public void TestBasicAckAfterChannelRecovery()
         {
@@ -151,7 +157,7 @@ namespace RabbitMQ.Client.Unit
         public void TestBasicConnectionRecoveryWithHostnameListAndUnreachableHosts()
         {
             using(var c = CreateAutorecoveringConnection(new List<string> { "191.72.44.22", "127.0.0.1", "localhost" }))
-            {        
+            {
                 Assert.IsTrue(c.IsOpen);
                 CloseAndWaitForRecovery(c);
                 Assert.IsTrue(c.IsOpen);
@@ -163,7 +169,7 @@ namespace RabbitMQ.Client.Unit
         {
             using(var c = CreateAutorecoveringConnection(
                         new List<AmqpTcpEndpoint> 
-                        { 
+                        {
                             new AmqpTcpEndpoint("127.0.0.1"), 
                             new AmqpTcpEndpoint("localhost") 
                         }))
@@ -172,6 +178,39 @@ namespace RabbitMQ.Client.Unit
                             CloseAndWaitForRecovery(c);
                             Assert.IsTrue(c.IsOpen);
                         }
+        }
+
+        [Test]
+        public void TestBasicConnectionRecoveryErrorEvent()
+        {
+            Assert.IsTrue(Conn.IsOpen);
+            using(var c = CreateAutorecoveringConnection())
+            {
+                var latch = new AutoResetEvent(false);
+                c.ConnectionRecoveryError += (o, _args) => latch.Set();
+                StopRabbitMQ();
+                latch.WaitOne(30000);
+                StartRabbitMQ();
+                WaitForRecovery(c);
+            }
+        }
+
+        [Test]
+        public void TestBasicConnectionRecoveryStopsAfterManualClose()
+        {
+            Assert.IsTrue(Conn.IsOpen);
+            var c = CreateAutorecoveringConnection();
+            var latch = new AutoResetEvent(false);
+            c.ConnectionRecoveryError += (o, args) => latch.Set();
+            StopRabbitMQ();
+            latch.WaitOne(30000); // we got the failed reconnection event.
+            var triedRecoveryAfterClose = false;
+            c.Close();
+            Thread.Sleep(5000);
+            c.ConnectionRecoveryError += (o, args) => triedRecoveryAfterClose = true;
+            Thread.Sleep(10000);
+            Assert.IsFalse(triedRecoveryAfterClose);
+            StartRabbitMQ();
         }
 
         [Test]
